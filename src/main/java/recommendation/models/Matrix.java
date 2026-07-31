@@ -1,5 +1,6 @@
 package recommendation.models;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,23 +31,23 @@ public class Matrix implements Cloneable {
     }
 
     public boolean isNonZero() {
-        List<Float> floatList = this.asList();
-        if (floatList.isEmpty()) {
+        List<Double> doubleList = this.asList();
+        if (doubleList.isEmpty()) {
             return false;
         }
-        for (Float f : floatList) {
-            if (!f.equals(0F)) {
+        for (Double d : doubleList) {
+            if (!d.equals(0D)) {
                 return true;
             }
         }
         return false;
     }
 
-    public float getCell(int row, int column) {
-        return (float) this.values[row][column];
+    public double getCell(int row, int column) {
+        return this.values[row][column];
     }
 
-    public Matrix setCell(int row, int column, float value) {
+    public Matrix setCell(int row, int column, double value) {
         this.values[row][column] = value;
         return this;
     }
@@ -100,20 +101,13 @@ public class Matrix implements Cloneable {
     }
 
     public double[] flat() {
-//        float[] flatMatrix = new float[this.rows * this.columns];
         return Arrays.stream(this.values)
                 .flatMapToDouble(Arrays::stream)
                 .toArray();
-//        for (int r = 0; r < this.rows; r++) {
-//            for (int c = 0; c < this.columns; c++) {
-//                flatMatrix[r * this.rows + c] = getCell(r, c);
-//            }
-//        }
-//        return flatMatrix;
     }
 
-    public List<Float> asList() {
-        List<Float> list = new ArrayList<>();
+    public List<Double> asList() {
+        List<Double> list = new ArrayList<>();
         for (int r = 0; r < this.rows; r++) {
             for (int c = 0; c < this.columns; c++) {
                 list.add(getCell(r, c));
@@ -216,57 +210,8 @@ public class Matrix implements Cloneable {
         return this.clone().removeRow(row).removeColumn(column);
     }
 
-//    public float determinant() {
-//        if (this.rows != this.columns) {
-//            throw new RuntimeException("Cannot calculate the determinant of a non square matrix");
-//        }
-//        int n = this.rows;
-//        if (n == 1) {
-//            return this.getCell(0, 0);
-//        }
-//        float det = 0;
-//        for (int c = 0; c < this.columns; c++) {
-//            int sign = c % 2 == 0 ? 1 : -1;
-//            det += sign * this.getCell(0, c) * this.minor(0,c).determinant();
-//        }
-//        return det;
-//    }
-
-//    public Matrix cofactor() {
-//        if (this.rows != this.columns) {
-//            throw new RuntimeException("Cannot calculate the cofactor of a non square matrix");
-//        }
-//        int n = this.rows;
-//        Matrix cofactorMatrix = new Matrix(n, n);
-//        for (int r = 0; r < this.rows; r++) {
-//            for (int c = 0; c < this.columns; c++) {
-//                int sign = (r % 2 == c % 2) ? 1 : -1;
-//                cofactorMatrix.setCell(r, c, sign * this.minor(r, c).determinant());
-//            }
-//        }
-//        return cofactorMatrix;
-//    }
-
-//    public Matrix adjoint() {
-//        if (this.rows != this.columns) {
-//            throw new RuntimeException("Cannot calculate the adjoint of a non square matrix");
-//        }
-//        return this.cofactor().transpose();
-//    }
-
-//    public Matrix inverse() {
-//        float det = this.determinant();
-//        if (det == 0) {
-//            return null;
-//        }
-//        Matrix inversedMatrix = this.adjoint();
-//        return inversedMatrix.dot(1 / det);
-//    }
-
-
     /**
      * Calculates the inverse of the matrix using gaussian elimination with partial pivoting
-     * STILL WIP
      * @return the inversed Matrix
      */
     public Matrix inverse() {
@@ -284,45 +229,37 @@ public class Matrix implements Cloneable {
             }
         }
 
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j <= i; j++) {
-                float v = augmented.getCell(i,j);
-                if (j == i) {
-                    if (v == 1) {
-                        continue;
-                    }
-                    augmented.setRow(i, augmented.getRow(i).dot(1/v));
-                } else {
-                    if (v == 0) {
-                        continue;
-                    }
-                    Matrix row = augmented.getRow(i);
-                    for (int k = 0; k < n; k++) {
-                        row.setCell(0, k + n, row.getCell(0, k));
-                    }
-                    augmented.setRow(i, augmented.getRow(j).add(row.dot(-v)));
+        for (int c = 0; c < n; c++) {
+            double base = augmented.getCell(c,c);
+            if (base != 1) {
+                // create pivot
+                for (int i = 0; i < n; i++) {
+                    augmented.setCell(c, i, augmented.getCell(c, i) / base);
+                    augmented.setCell(c, i + n, augmented.getCell(c, i + n) / base);
+//                    augmented.setCell(c, i, BigDecimal.valueOf(augmented.getCell(c, i)).divide(BigDecimal.valueOf(base), 16, BigDecimal.ROUND_HALF_EVEN).doubleValue());
+//                    augmented.setCell(c, i + n, BigDecimal.valueOf(augmented.getCell(c, i + n)).divide(BigDecimal.valueOf(base), 16, BigDecimal.ROUND_HALF_EVEN).doubleValue());
                 }
             }
-        }
-
-        for (int i = n-1; i >= 0; --i) {
-            for (int j = n; j > i; --j) {
-                float v = augmented.getCell(i,j);
-                if (v == 0) {
+            // eliminate column
+            for (int r = 0; r < n; r++) {
+                if (c == r) {
                     continue;
                 }
-                Matrix row = augmented.getRow(i);
-                for (int k = 0; k < n; k++) {
-                    row.setCell(0, k + n, row.getCell(0, k));
+                // calculate row
+                double factor = augmented.getCell(r, c);
+                for (int i = 0; i < n; i++) {
+                    augmented.setCell(r, i, augmented.getCell(r, i) - augmented.getCell(c, i) * factor);
+                    augmented.setCell(r, i + n, augmented.getCell(r, i + n) - augmented.getCell(c, i + n) * factor);
+//                    augmented.setCell(r, i, BigDecimal.valueOf(augmented.getCell(r, i)).subtract(BigDecimal.valueOf(augmented.getCell(c, i)).multiply(BigDecimal.valueOf(factor))).doubleValue());
+//                    augmented.setCell(r, i + n, BigDecimal.valueOf(augmented.getCell(r, i + n)).subtract(BigDecimal.valueOf(augmented.getCell(c, i + n)).multiply(BigDecimal.valueOf(factor))).doubleValue());
                 }
-                augmented.setRow(i, augmented.getRow(i).add(row.dot(-v)));
             }
         }
 
         Matrix inversed = new Matrix(n,n);
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                inversed.setCell(i, j, augmented.getCell(i, j + n));
+                inversed.setCell(i, j, BigDecimal.valueOf(augmented.getCell(i, j + n)).setScale(14, BigDecimal.ROUND_HALF_EVEN).doubleValue());
             }
         }
 
