@@ -9,6 +9,8 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import recommendation.models.neo4j.NodeId;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,5 +132,25 @@ public class BaseProcedure {
         return queryList(query, parameters, NodeId.class).stream()
                 .map(NodeId::getId)
                 .collect(Collectors.toList());
+    }
+
+    protected String durationToString(Duration duration) {
+        List<String> parts = new ArrayList<>();
+        if (duration.toDays() > 0) {
+            parts.add(duration.toDays() + "d");
+        }
+        if (duration.toHours() > 0) {
+            parts.add(duration.toHours() % 24 + "h");
+        }
+        if (duration.toMinutes() > 0) {
+            parts.add(duration.toMinutes() % 60 + "m");
+        }
+        if (duration.toSeconds() > 0) {
+            parts.add(duration.toSeconds() % 60 + "s");
+        }
+        if (duration.toMillis() > 0) {
+            parts.add(duration.toMillis() % 1000 + "ms");
+        }
+        return String.join(" ", parts);
     }
 }

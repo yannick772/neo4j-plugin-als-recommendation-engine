@@ -7,9 +7,13 @@ import recommendation.models.IdentityMatrix;
 import java.util.Objects;
 import java.util.Random;
 
+import org.neo4j.logging.Log;
+
 public class AlsService {
 
     private static final Random randomGenerator = new Random();
+
+    private static Log serverLog;
 
     public static AlsFitResult fit(Matrix userItemTable, int iterations, float regulation, int factors) {
         if (Objects.isNull(userItemTable)) {
@@ -21,6 +25,9 @@ public class AlsService {
         Matrix itemFactors = generateRandomizedMatrix(m, factors);
         Matrix I = new IdentityMatrix(factors).dot(regulation);
         for (int t = 0; t < iterations; t++) {
+            if (Objects.nonNull(serverLog)) {
+                serverLog.debug("Running Iteration " + (t+1) + "/" + iterations);
+            }
             for (int i = 0; i < n; i++) {
                 boolean[] filter = createFilterForColumns(i, userItemTable);
                 Matrix ri = userItemTable.getRow(i).filterColumns(filter).transpose();
@@ -34,7 +41,7 @@ public class AlsService {
             }
             for (int j = 0; j < m; j++) {
                 boolean[] filter = createFilterForRows(j, userItemTable);
-                Matrix rj = userItemTable.getColumn(j).filterRows(filter).transpose();
+                Matrix rj = userItemTable.getColumn(j).filterRows(filter);
                 Matrix uj = itemFactors.filterRows(filter);
                 // U_j^T * U_j + I_k * r
                 Matrix av = uj.transpose().dot(uj).add(I);
@@ -78,6 +85,10 @@ public class AlsService {
             filter[i] = row[i] != 0;
         }
         return filter;
+    }
+
+    public static void setLog(Log log) {
+        serverLog = log;
     }
 
 }

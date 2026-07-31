@@ -9,6 +9,14 @@ public class CharacteristicVector {
 
     private double[] factors;
 
+    public CharacteristicVector() {
+
+    }
+
+    public CharacteristicVector(double... values) {
+        this.factors = values;
+    }
+
     public double[] getFactors() {
         return factors;
     }
