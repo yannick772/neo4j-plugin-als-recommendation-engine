@@ -1,13 +1,12 @@
 package recommendation.als.service;
 
+import org.neo4j.logging.Log;
 import recommendation.models.AlsFitResult;
-import recommendation.models.Matrix;
 import recommendation.models.IdentityMatrix;
+import recommendation.models.Matrix;
 
 import java.util.Objects;
 import java.util.Random;
-
-import org.neo4j.logging.Log;
 
 public class AlsService {
 

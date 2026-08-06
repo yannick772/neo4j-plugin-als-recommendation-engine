@@ -1,7 +1,7 @@
 package recommendation.als;
 
-import recommendation.models.neo4j.CharacteristicVector;
 import recommendation.models.Matrix;
+import recommendation.models.neo4j.CharacteristicVector;
 import recommendation.models.neo4j.UserItemRelationship;
 
 import java.util.HashMap;
@@ -32,13 +32,11 @@ public class AlsProcedure extends BaseProcedure {
         Map<Long, Integer> userIdMap = getNodeIdMap(userCLass);
         Map<Long, Integer> itemIdMap = getNodeIdMap(itemClass);
         Matrix userItemMatrix = new Matrix(userIdMap.size(), itemIdMap.size());
-        relations.forEach(r -> {
-            userItemMatrix.setCell(
-                    userIdMap.get(r.getUserId()),
-                    itemIdMap.get(r.getItemId()),
-                    r.getRating()
-            );
-        });
+        relations.forEach(r -> userItemMatrix.setCell(
+                userIdMap.get(r.getUserId()),
+                itemIdMap.get(r.getItemId()),
+                r.getRating()
+        ));
         return userItemMatrix;
     }
 
