@@ -10,9 +10,7 @@ import recommendation.models.Matrix;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Timer;
 import java.util.stream.Stream;
 
 public class AlsFit extends AlsProcedure {
@@ -35,9 +33,9 @@ public class AlsFit extends AlsProcedure {
             @Name("item") String item,
             @Name("relationship") String relationship,
             @Name("value") String value,
-            @Name("iterations") long iterations,
-            @Name("regulation") double regulation,
-            @Name("factors") long factors,
+            @Name(value = "iterations", defaultValue = "100") long iterations,
+            @Name(value = "regulation", defaultValue = "1") double regulation,
+            @Name(value = "factors", defaultValue = "10") long factors,
             @Name(value = "seed", defaultValue = "0") long seed
     ) {
         // starting timer
@@ -61,15 +59,11 @@ public class AlsFit extends AlsProcedure {
 
         // set als characteristic vectors for users
         Matrix userFactors = fitResult.getUserFactors();
-        userIdMap.forEach((userId, index) -> {
-            setNodeProperty(userId, PROPERTY_ALS, userFactors.getRow(index).flat());
-        });
+        userIdMap.forEach((userId, index) -> setNodeProperty(userId, PROPERTY_ALS, userFactors.getRow(index).flat()));
 
         // set als characteristic vectors for items
         Matrix itemFactors = fitResult.getItemFactors();
-        itemIdMap.forEach((itemId, index) -> {
-            setNodeProperty(itemId, PROPERTY_ALS, itemFactors.getRow(index).flat());
-        });
+        itemIdMap.forEach((itemId, index) -> setNodeProperty(itemId, PROPERTY_ALS, itemFactors.getRow(index).flat()));
 
         // ending timer
         Instant end = Instant.now();
