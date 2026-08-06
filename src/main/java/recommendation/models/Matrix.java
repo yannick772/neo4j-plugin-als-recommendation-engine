@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class Matrix implements Cloneable {
+public class Matrix {
     protected int rows;
     protected int columns;
     protected double[][] values;
@@ -198,72 +198,45 @@ public class Matrix implements Cloneable {
     }
 
     /**
-     * Returns the minor Matrix of the specified row and column
-     * @param row
-     * @param column
-     * @return M_row,column
-     */
-    public Matrix minor(int row, int column) {
-        if (this.rows == 1 || this.columns == 1) {
-            throw new RuntimeException("Cannot calculate minor matrix: because the matrixis too small");
-        }
-        return this.clone().removeRow(row).removeColumn(column);
-    }
-
-    /**
-     * Calculates the inverse of the matrix using gaussian elimination with partial pivoting
-     * @return the inversed Matrix
+     * Calculates the inverse of the matrix according to "An Efficient and Simple Algorithm for Matrix Inversion"
+     * @return inverse of the matrix
      */
     public Matrix inverse() {
         if (this.rows != this.columns) {
             throw new RuntimeException("Cannot calculate the inverse of a non square matrix");
         }
+        Matrix inverseMatrix = this.clone();
         int n = this.rows;
-        Matrix augmented = new Matrix(n, n * 2);
+        for (int p = 0; p < n; p++) {
+            double pivot = inverseMatrix.getCell(p, p);
+            if (pivot == 0) {
+                return null;
+            }
+            for (int i = 0; i < n; i++) {
+                inverseMatrix.setCell(i, p, -inverseMatrix.getCell(i, p) / pivot);
+            }
+            for (int i = 0; i < n; i++) {
+                if (i != p) {
+                    for (int j = 0; j < n; j++) {
+                        if (j != p) {
+                            inverseMatrix.setCell(i, j, inverseMatrix.getCell(i, j) + inverseMatrix.getCell(p, j) * inverseMatrix.getCell(i, p));
+                        }
+                    }
+                }
+            }
+            for (int j = 0; j < n; j++) {
+                inverseMatrix.setCell(p, j, inverseMatrix.getCell(p, j) / pivot);
+            }
+            inverseMatrix.setCell(p, p, 1 / pivot);
+        }
+
+        // round values due to floating point errors
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                augmented.setCell(i, j, this.getCell(i, j));
-                if (i == j) {
-                    augmented.setCell(i, j + n, 1);
-                }
+                inverseMatrix.setCell(i, j, BigDecimal.valueOf(inverseMatrix.getCell(i, j)).setScale(14, BigDecimal.ROUND_HALF_EVEN).doubleValue());
             }
         }
-
-        for (int c = 0; c < n; c++) {
-            double base = augmented.getCell(c,c);
-            if (base != 1) {
-                // create pivot
-                for (int i = 0; i < n; i++) {
-                    augmented.setCell(c, i, augmented.getCell(c, i) / base);
-                    augmented.setCell(c, i + n, augmented.getCell(c, i + n) / base);
-//                    augmented.setCell(c, i, BigDecimal.valueOf(augmented.getCell(c, i)).divide(BigDecimal.valueOf(base), 16, BigDecimal.ROUND_HALF_EVEN).doubleValue());
-//                    augmented.setCell(c, i + n, BigDecimal.valueOf(augmented.getCell(c, i + n)).divide(BigDecimal.valueOf(base), 16, BigDecimal.ROUND_HALF_EVEN).doubleValue());
-                }
-            }
-            // eliminate column
-            for (int r = 0; r < n; r++) {
-                if (c == r) {
-                    continue;
-                }
-                // calculate row
-                double factor = augmented.getCell(r, c);
-                for (int i = 0; i < n; i++) {
-                    augmented.setCell(r, i, augmented.getCell(r, i) - augmented.getCell(c, i) * factor);
-                    augmented.setCell(r, i + n, augmented.getCell(r, i + n) - augmented.getCell(c, i + n) * factor);
-//                    augmented.setCell(r, i, BigDecimal.valueOf(augmented.getCell(r, i)).subtract(BigDecimal.valueOf(augmented.getCell(c, i)).multiply(BigDecimal.valueOf(factor))).doubleValue());
-//                    augmented.setCell(r, i + n, BigDecimal.valueOf(augmented.getCell(r, i + n)).subtract(BigDecimal.valueOf(augmented.getCell(c, i + n)).multiply(BigDecimal.valueOf(factor))).doubleValue());
-                }
-            }
-        }
-
-        Matrix inversed = new Matrix(n,n);
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                inversed.setCell(i, j, BigDecimal.valueOf(augmented.getCell(i, j + n)).setScale(14, BigDecimal.ROUND_HALF_EVEN).doubleValue());
-            }
-        }
-
-        return inversed;
+        return inverseMatrix;
     }
 
     public Matrix filterRows(boolean[] filter) {
@@ -296,15 +269,12 @@ public class Matrix implements Cloneable {
 
     @Override
     public Matrix clone() {
-        final Matrix clone;
-        try {
-            clone = (Matrix) super.clone();
-        } catch (Exception e) {
-            throw new RuntimeException("Superclass messed up while cloning", e);
+        final Matrix clone = new Matrix(this.rows, this.columns);
+        for (int r = 0; r < this.rows; r++) {
+            for (int c = 0; c < this.columns; c++) {
+                clone.setCell(r, c, this.getCell(r, c));
+            }
         }
-        clone.rows = this.rows;
-        clone.columns = this.columns;
-        clone.values = this.values.clone();
         return clone;
     }
 }
