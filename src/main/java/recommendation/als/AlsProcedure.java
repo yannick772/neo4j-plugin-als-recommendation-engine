@@ -1,5 +1,6 @@
 package recommendation.als;
 
+import recommendation.BaseProcedure;
 import recommendation.models.Matrix;
 import recommendation.models.neo4j.CharacteristicVector;
 import recommendation.models.neo4j.UserItemRelationship;
