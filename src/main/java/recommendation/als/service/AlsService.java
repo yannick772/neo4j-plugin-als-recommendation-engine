@@ -25,7 +25,7 @@ public class AlsService {
         Matrix I = new IdentityMatrix(factors).dot(regulation);
         for (int t = 0; t < iterations; t++) {
             if (Objects.nonNull(serverLog)) {
-                serverLog.debug("Running Iteration " + (t+1) + "/" + iterations);
+                serverLog.debug("Running Iteration %s/%s".formatted(t+1, iterations));
             }
             for (int i = 0; i < n; i++) {
                 boolean[] filter = createFilterForColumns(i, userItemTable);

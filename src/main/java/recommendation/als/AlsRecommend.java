@@ -17,7 +17,7 @@ public class AlsRecommend extends AlsProcedure {
             userNodeId: nodeId of the user you wish to recommend the item
             itemNodeId: nodeId of the item you wish to recommend to the user
             """)
-    public Stream<BaseProcedure.DoubleOutput> recommend(@Name("userNodeId") Long userNodeId, @Name("itemNodeId") Long itemNodeId) {
+    public Stream<DoubleOutput> recommend(@Name("userNodeId") Long userNodeId, @Name("itemNodeId") Long itemNodeId) {
         CharacteristicVector userVector = getCharacteristicVector(userNodeId);
 
         CharacteristicVector itemVector = getCharacteristicVector(itemNodeId);
@@ -29,7 +29,7 @@ public class AlsRecommend extends AlsProcedure {
         for (int i = 0; i < userVector.getLength(); i++) {
             recommendation += userVector.doubleValue(i) * itemVector.doubleValue(i);
         }
-        return Stream.of(new BaseProcedure.DoubleOutput(recommendation));
+        return Stream.of(new DoubleOutput(recommendation));
     }
 
 }
