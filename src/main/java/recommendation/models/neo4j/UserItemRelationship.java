@@ -5,21 +5,33 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserItemRelationship {
 
-    private Long userId;
+    private String userId;
 
-    private Float rating;
+    private double rating;
 
-    private Long itemId;
+    private String itemId;
 
-    public Long getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public Float getRating() {
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public double getRating() {
         return rating;
     }
 
-    public Long getItemId() {
+    public void setRating(double rating) {
+        this.rating = rating;
+    }
+
+    public String getItemId() {
         return itemId;
+    }
+
+    public void setItemId(String itemId) {
+        this.itemId = itemId;
     }
 }

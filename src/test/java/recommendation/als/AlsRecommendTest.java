@@ -27,8 +27,8 @@ public class AlsRecommendTest extends AlsBaseTest<AlsRecommend> {
             parameters.put("userVector", userFactors);
             parameters.put("itemVector", itemFactors);
 
-            long userId = session.run("CREATE (u:User {als:$userVector}) RETURN id(u) AS nodeId", parameters).single().get("nodeId").asLong();
-            long itemId = session.run("CREATE (i:Item {als:$itemVector}) RETURN id(i) AS nodeId", parameters).single().get("nodeId").asLong();
+            String userId = session.run("CREATE (u:User {als:$userVector}) RETURN elementId(u) AS nodeId", parameters).single().get("nodeId").asString();
+            String itemId = session.run("CREATE (i:Item {als:$itemVector}) RETURN elementId(i) AS nodeId", parameters).single().get("nodeId").asString();
 
             // act
             parameters.clear();
@@ -54,8 +54,8 @@ public class AlsRecommendTest extends AlsBaseTest<AlsRecommend> {
             parameters.put("userVector", userFactors);
             parameters.put("itemVector", itemFactors);
 
-            long userId = session.run("CREATE (u:User {als:$userVector}) RETURN id(u) AS nodeId", parameters).single().get("nodeId").asLong();
-            long itemId = session.run("CREATE (i:Item {als:$itemVector}) RETURN id(i) AS nodeId", parameters).single().get("nodeId").asLong();
+            String userId = session.run("CREATE (u:User {als:$userVector}) RETURN elementId(u) AS nodeId", parameters).single().get("nodeId").asString();
+            String itemId = session.run("CREATE (i:Item {als:$itemVector}) RETURN elementId(i) AS nodeId", parameters).single().get("nodeId").asString();
 
             // act & assert
             parameters.clear();

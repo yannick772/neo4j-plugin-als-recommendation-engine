@@ -7,14 +7,16 @@ import java.util.Objects;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CharacteristicVector {
 
+    private String nodeId;
+
     private double[] factors;
 
-    public CharacteristicVector() {
-
+    public String getNodeId() {
+        return nodeId;
     }
 
-    public CharacteristicVector(double... values) {
-        this.factors = values;
+    public void setNodeId(String nodeId) {
+        this.nodeId = nodeId;
     }
 
     public double[] getFactors() {
@@ -36,7 +38,4 @@ public class CharacteristicVector {
         return factors[i];
     }
 
-    public float floatValue(int i) {
-        return (float) factors[i];
-    }
 }

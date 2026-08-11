@@ -2,14 +2,13 @@ package recommendation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import recommendation.models.neo4j.NodeId;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,78 +59,97 @@ public class BaseProcedure {
         }
     }
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+//    private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    protected <T> T querySingle(String query, Class<T> clazz) {
-        try {
-            String resultJson = objectMapper.writeValueAsString(
-                    transaction.execute(query).stream()
-                            .findFirst()
-                            .orElse(null)
-            );
-            return objectMapper.readValue(resultJson, clazz);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+//    protected <T> T querySingle(String query, Class<T> clazz) {
+//        try {
+//            String resultJson = objectMapper.writeValueAsString(
+//                    transaction.execute(query).stream()
+//                            .findFirst()
+//                            .orElse(null)
+//            );
+//            return objectMapper.readValue(resultJson, clazz);
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+//    protected <T> T querySingle(String query, Map<String, Object> parameters, Class<T> clazz) {
+//        try {
+//            String resultJson = objectMapper.writeValueAsString(
+//                    transaction.execute(query, parameters).stream()
+//                            .findFirst()
+//                            .orElse(null)
+//            );
+//            return objectMapper.readValue(resultJson, clazz);
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+//    protected <T> List<T> queryList(String query, Class<T> clazz) {
+//        try {
+//            String resultJson = objectMapper.writeValueAsString(
+//                    transaction.execute(query).stream()
+//                            .collect(Collectors.toList())
+//            );
+//            return objectMapper.readValue(resultJson, objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+//    protected <T> List<T> queryList(String query, Map<String, Object> parameters, Class<T> clazz) {
+//        try {
+//            String resultJson = objectMapper.writeValueAsString(
+//                    transaction.execute(query, parameters).stream()
+//                            .collect(Collectors.toList())
+//            );
+//            return objectMapper.readValue(resultJson, objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    protected void setNodeProperty(String nodeId, String propertyName, Object property) {
+        Node node = transaction.getNodeByElementId(nodeId);
+        node.setProperty(propertyName, property);
+//        String query = "MATCH (n) " +
+//                "WHERE id(n)=$nodeId " +
+//                "SET n." + propertyName + " = $property";
+//        Map<String, Object> parameters = new HashMap<>();
+//        parameters.put("nodeId", nodeId);
+//        parameters.put("property", property);
+//        transaction.execute(query, parameters);
+    }
+
+//    protected List<String> queryForIds(String query) {
+//        return queryList(query, NodeId.class).stream()
+//                .map(NodeId::getElementId)
+//                .collect(Collectors.toList());
+//    }
+
+    protected List<String> findNodeIds(String nodeLabel) {
+        ResourceIterator<Node> nodeIterator = transaction.findNodes(Label.label(nodeLabel));
+        List<String> nodeIds = new ArrayList<>();
+        while (nodeIterator.hasNext()) {
+            nodeIds.add(nodeIterator.next().getElementId());
         }
+        return nodeIds;
     }
 
-    protected <T> T querySingle(String query, Map<String, Object> parameters, Class<T> clazz) {
-        try {
-            String resultJson = objectMapper.writeValueAsString(
-                    transaction.execute(query, parameters).stream()
-                            .findFirst()
-                            .orElse(null)
-            );
-            return objectMapper.readValue(resultJson, clazz);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+//    protected List<String> queryForIds(String query, Map<String, Object> parameters) {
+//        return queryList(query, parameters, NodeId.class).stream()
+//                .map(NodeId::getElementId)
+//                .collect(Collectors.toList());
+//    }
+
+    protected String durationToString(Instant from) {
+        return durationToString(from, Instant.now());
     }
 
-    protected <T> List<T> queryList(String query, Class<T> clazz) {
-        try {
-            String resultJson = objectMapper.writeValueAsString(
-                    transaction.execute(query).stream()
-                            .collect(Collectors.toList())
-            );
-            return objectMapper.readValue(resultJson, objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected <T> List<T> queryList(String query, Map<String, Object> parameters, Class<T> clazz) {
-        try {
-            String resultJson = objectMapper.writeValueAsString(
-                    transaction.execute(query, parameters).stream()
-                            .collect(Collectors.toList())
-            );
-            return objectMapper.readValue(resultJson, objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected void setNodeProperty(Long nodeId, String propertyName, Object property) {
-        String query = "MATCH (n) " +
-                "WHERE id(n)=$nodeId " +
-                "SET n." + propertyName + " = $property";
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put("nodeId", nodeId);
-        parameters.put("property", property);
-        transaction.execute(query, parameters);
-    }
-
-    protected List<Long> queryForIds(String query) {
-        return queryList(query, NodeId.class).stream()
-                .map(NodeId::getId)
-                .collect(Collectors.toList());
-    }
-
-    protected List<Long> queryForIds(String query, Map<String, Object> parameters) {
-        return queryList(query, parameters, NodeId.class).stream()
-                .map(NodeId::getId)
-                .collect(Collectors.toList());
+    protected String durationToString(Instant from, Instant to) {
+        return durationToString(Duration.between(from, to));
     }
 
     protected String durationToString(Duration duration) {

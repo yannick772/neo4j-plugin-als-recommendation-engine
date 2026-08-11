@@ -1,29 +1,31 @@
 package recommendation.models;
 
+import org.ejml.data.DMatrixRMaj;
+
 public class AlsFitResult {
 
-    private Matrix userFactors;
+    private DMatrixRMaj userFactors;
 
-    private Matrix itemFactors;
+    private DMatrixRMaj itemFactors;
 
-    public AlsFitResult(Matrix userFactors, Matrix itemFactors) {
+    public AlsFitResult(DMatrixRMaj userFactors, DMatrixRMaj itemFactors) {
         this.userFactors = userFactors;
         this.itemFactors = itemFactors;
     }
 
-    public Matrix getUserFactors() {
+    public DMatrixRMaj getUserFactors() {
         return userFactors;
     }
 
-    public void setUserFactors(Matrix userFactors) {
+    public void setUserFactors(DMatrixRMaj userFactors) {
         this.userFactors = userFactors;
     }
 
-    public Matrix getItemFactors() {
+    public DMatrixRMaj getItemFactors() {
         return itemFactors;
     }
 
-    public void setItemFactors(Matrix itemFactors) {
+    public void setItemFactors(DMatrixRMaj itemFactors) {
         this.itemFactors = itemFactors;
     }
 }

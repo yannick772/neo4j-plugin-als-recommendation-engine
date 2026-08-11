@@ -5,14 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NodeId {
 
-    private Long id;
+    private String elementId;
 
-    public Long getId() {
-        return id;
+    public String getElementId() {
+        return elementId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setElementId(String elementId) {
+        this.elementId = elementId;
     }
 
 }

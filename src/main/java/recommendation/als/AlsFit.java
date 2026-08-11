@@ -1,14 +1,15 @@
 package recommendation.als;
 
+import org.ejml.data.DMatrixRMaj;
+import org.ejml.data.DMatrixSparseCSC;
+import org.ejml.dense.row.CommonOps_DDRM;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 import recommendation.als.service.AlsService;
 import recommendation.models.AlsFitResult;
-import recommendation.models.Matrix;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -29,10 +30,10 @@ public class AlsFit extends AlsProcedure {
             seed: seed for randomization (use "default" for random value)
             """)
     public Stream<BooleanOutput> fit(
-            @Name("user") String user,
-            @Name("item") String item,
-            @Name("relationship") String relationship,
-            @Name("value") String value,
+            @Name(value = "user", defaultValue = "User") String user,
+            @Name(value = "item", defaultValue = "Movie") String item,
+            @Name(value = "relationship", defaultValue = "RATED") String relationship,
+            @Name(value = "value", defaultValue = "rating") String value,
             @Name(value = "iterations", defaultValue = "100") long iterations,
             @Name(value = "regulation", defaultValue = "1") double regulation,
             @Name(value = "factors", defaultValue = "10") long factors,
@@ -42,11 +43,10 @@ public class AlsFit extends AlsProcedure {
         Instant start = Instant.now();
 
         // pulling necessary values
-        Map<Long, Integer> userIdMap = getNodeIdMap(user);
+        Map<String, Integer> userIdMap = getNodeIdMap(user);
+        Map<String, Integer> itemIdMap = getNodeIdMap(item);
 
-        Map<Long, Integer> itemIdMap = getNodeIdMap(item);
-
-        Matrix userItemMatrix = getUserItemMatrix(relationship, user, item, value);
+        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, userIdMap, itemIdMap, value);
 
         // calculate characteristic vectors
         AlsService.setLog(log);
@@ -56,20 +56,24 @@ public class AlsFit extends AlsProcedure {
         } else {
             fitResult = AlsService.fit(userItemMatrix, (int) iterations, (float) regulation, (int) factors, seed);
         }
+        AlsService.removeLog();
 
         // set als characteristic vectors for users
-        Matrix userFactors = fitResult.getUserFactors();
-        userIdMap.forEach((userId, index) -> setNodeProperty(userId, PROPERTY_ALS, userFactors.getRow(index).flat()));
+        DMatrixRMaj userFactors = fitResult.getUserFactors();
+        userIdMap.forEach((userId, index) -> setNodeProperty(userId, PROPERTY_ALS, getRow(userFactors, index).data));
 
         // set als characteristic vectors for items
-        Matrix itemFactors = fitResult.getItemFactors();
-        itemIdMap.forEach((itemId, index) -> setNodeProperty(itemId, PROPERTY_ALS, itemFactors.getRow(index).flat()));
+        DMatrixRMaj itemFactors = fitResult.getItemFactors();
+        itemIdMap.forEach((itemId, index) -> setNodeProperty(itemId, PROPERTY_ALS, getRow(itemFactors, index).data));
 
         // ending timer
-        Instant end = Instant.now();
-        log.info("Took " + durationToString(Duration.between(start, end)));
+        log.info("AlsFit took " + durationToString(start));
 
         return Stream.of(new BooleanOutput(true));
+    }
+
+    private DMatrixRMaj getRow(DMatrixRMaj matrix, int row) {
+        return CommonOps_DDRM.extractRow(matrix, row, null);
     }
 
 }

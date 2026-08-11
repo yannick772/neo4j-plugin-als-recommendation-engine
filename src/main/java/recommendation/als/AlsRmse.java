@@ -1,11 +1,14 @@
 package recommendation.als;
 
+import org.ejml.data.DMatrixRMaj;
+import org.ejml.data.DMatrixSparseCSC;
+import org.ejml.dense.row.CommonOps_DDRM;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
-import recommendation.models.Matrix;
 
+import java.util.Map;
 import java.util.stream.Stream;
 
 public class AlsRmse extends AlsProcedure {
@@ -20,33 +23,45 @@ public class AlsRmse extends AlsProcedure {
             value: the name of the value in the relationship that is supposed to be predicted via als
             """)
     public Stream<DoubleOutput> rmse(@Name("relationship") String relationship, @Name("user") String user, @Name("item") String item, @Name("value") String value) {
-        Matrix userItemMatrix = getUserItemMatrix(relationship, user, item, value);
+        Map<String, Integer> userIdMap = getNodeIdMap(user);
+        Map<String, Integer> itemIdMap = getNodeIdMap(item);
+        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, userIdMap, itemIdMap, value);
 
-        Matrix userFactors = getCharacteristicFactors(user);
-        Matrix itemFactors = getCharacteristicFactors(item);
+        DMatrixRMaj userFactors = getCharacteristicFactors(user, userIdMap);
+        DMatrixRMaj itemFactors = getCharacteristicFactors(item, itemIdMap);
+        if (userFactors.numCols == 0 || itemFactors.numCols == 0) {
+            throw new RuntimeException("Cannot calculate RMSE: No characteristic factors present");
+        }
 
-        Matrix recommendations = userFactors
-                .dot(itemFactors.transpose());
-        if (!recommendations.isNonZero()) {
-            throw new RuntimeException("Cannot calculate RMSE: Recommendations could not be generated");
-        }
-        if (!userItemMatrix.isNonZero()) {
-            throw new RuntimeException("Cannot calculate RMSE: No real values given");
-        }
-        if (recommendations.getNumberOfRows() != userItemMatrix.getNumberOfRows()
-                || recommendations.getNumberOfColumns() != userItemMatrix.getNumberOfColumns()) {
+        if (userFactors.numRows != userItemMatrix.numRows
+                || itemFactors.numRows != userItemMatrix.numCols) {
             throw new RuntimeException("Cannot calculate RMSE: Matrix dimensions do not match");
         }
 
         double rmse = 0;
         int total = 0;
-        double[] flatRecommendations = recommendations.flat();
-        double[] flatRealValues = userItemMatrix.flat();
-        for (int i = 0; i < flatRealValues.length; i++) {
-            if (flatRealValues[i] != 0) {
-                rmse += Math.pow(flatRealValues[i] - flatRecommendations[i], 2);
+
+        DMatrixRMaj userVector = new DMatrixRMaj(1, userFactors.numCols);
+        DMatrixRMaj itemVector = new DMatrixRMaj(1, itemFactors.numCols);
+        DMatrixRMaj recommendation = new DMatrixRMaj(1, 1);
+        for (int col = 0; col < userItemMatrix.numCols; col++) {
+            int startIndex = userItemMatrix.col_idx[col];
+            int endIndex = userItemMatrix.col_idx[col + 1];
+            for (int i = startIndex; i < endIndex; i++) {
+                int row = userItemMatrix.nz_rows[i];
+                double trueValue = userItemMatrix.nz_values[i];
+                CommonOps_DDRM.extractRow(userFactors, row, userVector);
+                CommonOps_DDRM.extractRow(itemFactors, col, itemVector);
+                CommonOps_DDRM.multTransB(userVector, itemVector, recommendation);
+                double predValue = recommendation.get(0);
+                rmse += Math.pow(trueValue - predValue, 2);
                 total++;
             }
+        }
+
+        if (total == 0) {
+            log.warn("Cannot calculate RMSE: No real values were found");
+            return Stream.of(new DoubleOutput(0.0));
         }
         rmse = Math.sqrt(rmse / total);
         return Stream.of(new DoubleOutput(rmse));

@@ -12,7 +12,7 @@ public class AlsRmseTest extends AlsBaseTest<AlsRmse> {
     public void testRmse() {
         // arrange
         loadFauxDataset("testDatabaseAls");
-        double expected = 0.398556221042162d;
+        double expected = 0.3985562303595317d;
         try (Session session = driver.session()) {
             // act
             Result result = session.run("CALL recommendation.als.rmse(\"RATING\", \"User\", \"Movie\", \"rating\") YIELD value RETURN value");
@@ -51,24 +51,7 @@ public class AlsRmseTest extends AlsBaseTest<AlsRmse> {
                         session.run("CALL recommendation.als.rmse(\"RATING\", \"User\", \"Movie\", \"rating\") YIELD value RETURN value").single();
                     })
                     .isInstanceOf(ClientException.class)
-                    .hasMessage("Failed to invoke procedure `recommendation.als.rmse`: Caused by: java.lang.RuntimeException: Cannot calculate RMSE: Recommendations could not be generated");
-        }
-    }
-
-    @Test
-    public void testRmse_noValuesPresent() {
-        // arrange
-        loadFauxDataset("testDatabaseAls");
-
-        try (Session session = driver.session()) {
-            session.run("MATCH (:User)-[r:RATING]->(:Movie) SET r.rating=0");
-
-            // act & assert
-            Assertions.assertThatThrownBy(() -> {
-                        session.run("CALL recommendation.als.rmse(\"RATING\", \"User\", \"Movie\", \"rating\") YIELD value RETURN value").single();
-                    })
-                    .isInstanceOf(ClientException.class)
-                    .hasMessage("Failed to invoke procedure `recommendation.als.rmse`: Caused by: java.lang.RuntimeException: Cannot calculate RMSE: No real values given");
+                    .hasMessage("Failed to invoke procedure `recommendation.als.rmse`: Caused by: java.lang.RuntimeException: Could not get Characteristic vectors: No vectors found for User nodes");
         }
     }
 

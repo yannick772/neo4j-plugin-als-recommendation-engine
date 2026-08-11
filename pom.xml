@@ -42,6 +42,22 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- EJML for big matrix calculations -->
+        <!-- Source: https://mvnrepository.com/artifact/org.ejml/ejml-ddense -->
+        <dependency>
+            <groupId>org.ejml</groupId>
+            <artifactId>ejml-ddense</artifactId>
+            <version>0.46.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/org.ejml/ejml-dsparse -->
+        <dependency>
+            <groupId>org.ejml</groupId>
+            <artifactId>ejml-dsparse</artifactId>
+            <version>0.46.1</version>
+            <scope>compile</scope>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <!-- This is used for a utility that lets us start Neo4j with
