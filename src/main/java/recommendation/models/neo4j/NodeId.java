@@ -2,6 +2,7 @@ package recommendation.models.neo4j;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@Deprecated
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NodeId {
 
