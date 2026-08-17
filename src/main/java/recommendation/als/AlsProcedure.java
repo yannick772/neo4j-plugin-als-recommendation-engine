@@ -5,13 +5,9 @@ import org.ejml.data.DMatrixSparseCSC;
 import org.neo4j.graphdb.*;
 import recommendation.BaseProcedure;
 import recommendation.models.neo4j.CharacteristicVector;
-import recommendation.models.neo4j.UserItemRelationship;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AlsProcedure extends BaseProcedure {
 
@@ -20,7 +16,7 @@ public class AlsProcedure extends BaseProcedure {
     protected Map<String, Integer> getNodeIdMap(String nodeClass) {
         Instant start = Instant.now();
         Map<String, Integer> nodeIdMap = new HashMap<>();
-        ResourceIterator<Node> nodeIterator = transaction.findNodes(Label.label(nodeClass));
+        ResourceIterator<Node> nodeIterator = findNodesByLabel(nodeClass);
         int index = 0;
         while (nodeIterator.hasNext()) {
             Node node = nodeIterator.next();
@@ -31,36 +27,22 @@ public class AlsProcedure extends BaseProcedure {
     }
 
     protected DMatrixSparseCSC getUserItemMatrix(String relationClass, Map<String, Integer> userIdMap, Map<String, Integer> itemIdMap, String propertyName) {
-        List<UserItemRelationship> relations = getRelations(relationClass, propertyName);
         Instant start = Instant.now();
         DMatrixSparseCSC userItemMatrix = new DMatrixSparseCSC(userIdMap.size(), itemIdMap.size());
-        relations.forEach(r -> userItemMatrix.set(
-                userIdMap.get(r.getUserId()),
-                itemIdMap.get(r.getItemId()),
-                r.getRating()
-        ));
+        ResourceIterator<Relationship> relationships = findRelationshipsByName(relationClass);
+        while (relationships.hasNext()) {
+            Relationship relationship = relationships.next();
+            Integer userIndex = userIdMap.get(relationship.getStartNode().getElementId());
+            Integer itemIndex = itemIdMap.get(relationship.getEndNode().getElementId());
+            double rating = Double.parseDouble(String.valueOf(relationship.getProperty(propertyName)));
+            userItemMatrix.set(userIndex, itemIndex, rating);
+        }
         log.info("Created %sx%s Matrix in %s".formatted(userItemMatrix.getNumRows(), userItemMatrix.getNumCols(), durationToString(start)));
         return userItemMatrix;
     }
 
-    protected List<UserItemRelationship> getRelations(String relationClass, String propertyName) {
-        Instant start = Instant.now();
-        ResourceIterator<Relationship> relationshipIterator = transaction.findRelationships(RelationshipType.withName(relationClass));
-        List<UserItemRelationship> relationships = new ArrayList<>();
-        while (relationshipIterator.hasNext()) {
-            Relationship relationship = relationshipIterator.next();
-            UserItemRelationship userItemRelationship = new UserItemRelationship();
-            userItemRelationship.setUserId(relationship.getStartNode().getElementId());
-            userItemRelationship.setRating(Double.parseDouble(String.valueOf(relationship.getProperty(propertyName))));
-            userItemRelationship.setItemId(relationship.getEndNode().getElementId());
-            relationships.add(userItemRelationship);
-        }
-        log.info("Pulled %s relationships of type %s in %s".formatted(relationships.size(), relationClass, durationToString(start)));
-        return relationships;
-    }
-
     protected DMatrixRMaj getCharacteristicFactors(String nodeClass, Map<String, Integer> nodeIdMap) {
-        ResourceIterator<Node> nodeIterator = transaction.findNodes(Label.label(nodeClass));
+        ResourceIterator<Node> nodeIterator = findNodesByLabel(nodeClass);
         if (!nodeIterator.hasNext()) {
             throw new RuntimeException("Could not get Characteristic vectors: No nodes found with label %s".formatted(nodeClass));
         }
@@ -91,8 +73,12 @@ public class AlsProcedure extends BaseProcedure {
     }
 
     protected CharacteristicVector getCharacteristicVector(String nodeId) {
-        Node node = transaction.getNodeByElementId(nodeId);
+        Node node = findNodeByElementId(nodeId)
+                .orElseThrow(() -> new RuntimeException("Node with elementId %s could not be found".formatted(nodeId)));
         CharacteristicVector vector = new CharacteristicVector();
+        if (!node.hasProperty(PROPERTY_ALS)) {
+            throw new RuntimeException("Node %s has no property '%s'".formatted(nodeId, PROPERTY_ALS));
+        }
         vector.setNodeId(node.getElementId());
         vector.setFactors((double[]) node.getProperty(PROPERTY_ALS));
         return vector;
