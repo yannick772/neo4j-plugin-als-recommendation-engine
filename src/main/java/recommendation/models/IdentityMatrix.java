@@ -1,5 +1,6 @@
 package recommendation.models;
 
+@Deprecated
 public class IdentityMatrix extends Matrix {
 
     public IdentityMatrix(int n) {

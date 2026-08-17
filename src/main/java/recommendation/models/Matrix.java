@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@Deprecated
 public class Matrix {
     protected int rows;
     protected int columns;
