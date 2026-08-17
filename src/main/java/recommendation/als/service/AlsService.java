@@ -61,22 +61,6 @@ public class AlsService {
                 CommonOps_DDRM.multTransB(calc, uv, big); // (V_i^T * V_i + I_k * r)^(-1) * V_i^T | dims: kxk * kxm-? = kxm-?
                 CommonOps_DSCC.multTransB(r, big, vector, null); // R_i * ((V_i^T * V_i + I_k * r)^(-1) * V_i^T)^T | dims: 1xm-? * m-?xk = 1xk
                 setRow(userFactors, vector, i);
-//                DMatrixRMaj res = mult(// (V_i^T * V_i + I_k * r)^(-1) * V_i^T * R_i^T | kxm-? * m-?x1 = kx1
-//                        mult(// (V_i^T * V_i + I_k * r)^(-1) * V_i^T | dims: kxk * kxm-? = kxm-?
-//                                invert(// (V_i^T * V_i + I_k * r)^(-1) | dims: kxk^(-1) = kxk
-//                                        add(// V_i^T * V_i + I_k * r | dims: kxk + kxk = kxk
-//                                                mult(// V_i^T * V_i | dims: kxm-? * m-?xk = kxk
-//                                                        transpose(vi),
-//                                                        vi
-//                                                ),
-//                                                I
-//                                        )
-//                                ),
-//                                transpose(vi)
-//                        ),
-//                        transpose(ri)
-//                );
-//                setRow(userFactors, transpose(res), i);
             }
             for (int j = 0; j < m; j++) {
                 int[] filter = createFilterForRows(j, userItemTableTransposed);
@@ -90,23 +74,7 @@ public class AlsService {
                 CommonOps_DDRM.invert(calc2, calc); // (U_j^T * U_j + I_k * r)^(-1) | dims: kxk^(-1) = kxk
                 CommonOps_DDRM.multTransB(calc, uv, big); // (U_j^T * U_j + I_k * r)^(-1) * U_j^T | dims: kxk * kxn-? = kxn-?
                 CommonOps_DSCC.multTransAB(r, big, vector); // R_i^T * ((U_j^T * U_j + I_k * r)^(-1) * U_j^T)^T | dims: 1xn-? * n-?xk = 1xk
-                // V_j = (U_j^T * U_j + I_k * r)^(-1) * U_j^T * R_i
-//                DMatrixRMaj res = mult(// (U_j^T * U_j + I_k * r)^(-1) * U_j^T * R_i | dims: kxn-? * n-?x1 = kx1
-//                        mult(// (U_j^T * U_j + I_k * r)^(-1) * U_j^T | dims: kxk * kxn-? = kxn-?
-//                                invert(// (U_j^T * U_j + I_k * r)^(-1) | dims: kxk^(-1) = kxk
-//                                        add(// U_j^T * U_j + I_k * r | dims kxk + kxk = kxk
-//                                                mult(// U_j^T * U_j | dims: kxn-? * n-?xk = kxk
-//                                                        transpose(uj),
-//                                                        uj
-//                                                ),
-//                                                I
-//                                        )
-//                                ),
-//                                transpose(uj)
-//                        ),
-//                        rj
-//                );
-//                setRow(itemFactors, transpose(res), j);
+                setRow(itemFactors, vector, j);
             }
         }
         return new AlsFitResult(userFactors, itemFactors);
@@ -127,13 +95,6 @@ public class AlsService {
         int[] nonZeroRows = new int[length];
         System.arraycopy(matrix.nz_rows, startIndex, nonZeroRows, 0, length);
         return nonZeroRows;
-//        List<Integer> nonZeroRows = new ArrayList<>();
-//        for (int r = 0; r < matrix.numRows; r++) {
-//            if (matrix.nz_index(r, c) >= 0) {
-//                nonZeroRows.add(r);
-//            }
-//        }
-//        return nonZeroRows.stream().mapToInt(x -> x).toArray();
     }
 
     private static DMatrixSparseCSC filterRows(DMatrixSparseCSC matrix, int[] filter) {
