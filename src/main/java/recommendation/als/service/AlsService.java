@@ -4,6 +4,8 @@ import org.ejml.data.DMatrixRMaj;
 import org.ejml.data.DMatrixSparseCSC;
 import org.ejml.dense.row.CommonOps_DDRM;
 import org.ejml.dense.row.RandomMatrices_DDRM;
+import org.ejml.dense.row.factory.LinearSolverFactory_DDRM;
+import org.ejml.interfaces.linsol.LinearSolverDense;
 import org.ejml.sparse.csc.CommonOps_DSCC;
 import org.neo4j.logging.Log;
 import recommendation.models.AlsFitResult;
@@ -28,53 +30,118 @@ public class AlsService {
         int m = userItemTable.getNumCols();
         DMatrixRMaj userFactors = new DMatrixRMaj(n, factors);
         RandomMatrices_DDRM.fillUniform(userFactors, randomGenerator);
-        DMatrixRMaj itemFactors = new DMatrixRMaj(n, factors);
+        DMatrixRMaj itemFactors = new DMatrixRMaj(m, factors);
         RandomMatrices_DDRM.fillUniform(itemFactors, randomGenerator);
         // Declaration of matrixs for calculation to allocate RAM
-        DMatrixRMaj uv = new DMatrixRMaj(Math.max(n, m), factors);
-        DMatrixRMaj calc = new DMatrixRMaj(factors, factors);
-        DMatrixRMaj calc2 = new DMatrixRMaj(factors, factors);
-        DMatrixRMaj big = new DMatrixRMaj(factors, Math.max(n, m));
-        DMatrixRMaj vector = new DMatrixRMaj(1, factors);
-        DMatrixSparseCSC tmp = new DMatrixSparseCSC(1, Math.max(n, m));
-        DMatrixSparseCSC r = new DMatrixSparseCSC(1, Math.max(n, m));
+//        DMatrixRMaj uv = new DMatrixRMaj(Math.max(n, m), factors);
+//        DMatrixRMaj calc = new DMatrixRMaj(factors, factors);
+//        DMatrixRMaj calc2 = new DMatrixRMaj(factors, factors);
+//        DMatrixRMaj big = new DMatrixRMaj(factors, Math.max(n, m));
+//        DMatrixRMaj vector = new DMatrixRMaj(1, factors);
+//        DMatrixSparseCSC tmp = new DMatrixSparseCSC(1, Math.max(n, m));
+//        DMatrixSparseCSC r = new DMatrixSparseCSC(1, Math.max(n, m));
+
+        DMatrixRMaj A = new DMatrixRMaj(factors, factors);
+        DMatrixRMaj B = new DMatrixRMaj(factors, 1);
+        DMatrixRMaj sol = new DMatrixRMaj(factors, 1);
 
         DMatrixRMaj I = CommonOps_DDRM.identity(factors);
         CommonOps_DDRM.scale(regulation, I);
 
         DMatrixSparseCSC userItemTableTransposed = CommonOps_DSCC.transpose(userItemTable, null, null);
+
+        // solver für das invertieren
+        LinearSolverDense<DMatrixRMaj> solverDense = LinearSolverFactory_DDRM.chol(factors);
         for (int t = 0; t < iterations; t++) {
             if (Objects.nonNull(serverLog)) {
                 serverLog.info("Running Iteration %s/%s".formatted(t+1, iterations));
             }
             for (int i = 0; i < n; i++) {
-                int[] filter = createFilterForColumns(i, userItemTable);
-                if (filter.length == 0) continue;
-                // R_i | dims: 1xm-?
-                filterColumns(getRow(userItemTable, i, tmp), filter, r);
-                // V_i | dims: m-?xk
-                filterRows(itemFactors, filter, uv);
-                // U_i = (V_i^T * V_i + I_k * r)^(-1) * V_i^T * R_i
-                CommonOps_DDRM.multTransA(uv, uv, calc); // V_i^T * V_i | dims: kxm-? * m-?xk = kxk
-                CommonOps_DDRM.add(calc, I, calc2); // V_i^T * V_i + I_k * r | dims: kxk + kxk = kxk
-                CommonOps_DDRM.invert(calc2, calc); // (V_i^T * V_i + I_k * r)^(-1) | dims: kxk^(-1) = kxk
-                CommonOps_DDRM.multTransB(calc, uv, big); // (V_i^T * V_i + I_k * r)^(-1) * V_i^T | dims: kxk * kxm-? = kxm-?
-                CommonOps_DSCC.multTransB(r, big, vector, null); // R_i * ((V_i^T * V_i + I_k * r)^(-1) * V_i^T)^T | dims: 1xm-? * m-?xk = 1xk
-                setRow(userFactors, vector, i);
+                int startIndex = userItemTableTransposed.col_idx[i];
+                int endIndex = userItemTableTransposed.col_idx[i + 1];
+                if (startIndex == endIndex) continue;
+                A.zero();
+                B.zero();
+                for (int index = startIndex; index < endIndex; index++) {
+                    int itemIndex = userItemTableTransposed.nz_rows[index];
+                    double rating = userItemTableTransposed.nz_values[index];
+
+                    // B = V_i^T * R_i
+                    for (int f1 = 0; f1 < factors; f1++) {
+                        double v1 = itemFactors.get(itemIndex, f1);
+                        B.data[f1] += v1 * rating;
+                        // A = V_i^T * V_i
+                        for (int f2 = 0; f2 < factors; f2++) {
+                            double v2 = itemFactors.get(itemIndex, f2);
+                            A.data[f1 * factors + f2] += v1 * v2;
+                        }
+                    }
+                }
+                // V_i^T * V_i + I_k * r
+                CommonOps_DDRM.addEquals(A, I);
+                // (V_i^T * V_i + I_k * r) * U_i = V_i^T * R_i
+                if (solverDense.setA(A)) {
+                    solverDense.solve(B, sol);
+                    // copy into userFactors
+                    System.arraycopy(sol.data, 0, userFactors.data, i * factors, factors);
+                }
+
+//                int[] filter = createFilterForColumns(i, userItemTable);
+//                if (filter.length == 0) continue;
+//                // R_i | dims: 1xm-?
+//                filterColumns(getRow(userItemTable, i, tmp), filter, r);
+//                // V_i | dims: m-?xk
+//                filterRows(itemFactors, filter, uv);
+//                // U_i = (V_i^T * V_i + I_k * r)^(-1) * V_i^T * R_i
+//                CommonOps_DDRM.multTransA(uv, uv, calc); // V_i^T * V_i | dims: kxm-? * m-?xk = kxk
+//                CommonOps_DDRM.add(calc, I, calc2); // V_i^T * V_i + I_k * r | dims: kxk + kxk = kxk
+//                CommonOps_DDRM.invert(calc2, calc); // (V_i^T * V_i + I_k * r)^(-1) | dims: kxk^(-1) = kxk
+//                CommonOps_DDRM.multTransB(calc, uv, big); // (V_i^T * V_i + I_k * r)^(-1) * V_i^T | dims: kxk * kxm-? = kxm-?
+//                CommonOps_DSCC.multTransB(r, big, vector, null); // R_i * ((V_i^T * V_i + I_k * r)^(-1) * V_i^T)^T | dims: 1xm-? * m-?xk = 1xk
+//                setRow(userFactors, vector, i);
             }
             for (int j = 0; j < m; j++) {
-                int[] filter = createFilterForRows(j, userItemTableTransposed);
-                if (filter.length == 0) continue;
-                // R_j | dims: n-?x1
-                filterRows(getColumn(userItemTable, j, tmp), filter, r);
-                // U_j | dims: n-?xk
-                filterRows(userFactors, filter, uv);
-                CommonOps_DDRM.multTransA(uv, uv, calc); // U_j^T * U_j | dims: kxn-? * n-?xk = kxk
-                CommonOps_DDRM.add(calc, I, calc2); // U_j^T * U_j + I_k * r | dims kxk + kxk = kxk
-                CommonOps_DDRM.invert(calc2, calc); // (U_j^T * U_j + I_k * r)^(-1) | dims: kxk^(-1) = kxk
-                CommonOps_DDRM.multTransB(calc, uv, big); // (U_j^T * U_j + I_k * r)^(-1) * U_j^T | dims: kxk * kxn-? = kxn-?
-                CommonOps_DSCC.multTransAB(r, big, vector); // R_i^T * ((U_j^T * U_j + I_k * r)^(-1) * U_j^T)^T | dims: 1xn-? * n-?xk = 1xk
-                setRow(itemFactors, vector, j);
+                int startIndex = userItemTableTransposed.col_idx[j];
+                int endIndex = userItemTableTransposed.col_idx[j + 1];
+                if (startIndex == endIndex) continue;
+                A.zero();
+                B.zero();
+                for (int index = startIndex; index < endIndex; index++) {
+                    int itemIndex = userItemTable.nz_rows[index];
+                    double rating = userItemTable.nz_values[index];
+
+                    // B = U_j^T * R_j
+                    for (int f1 = 0; f1 < factors; f1++) {
+                        double u1 = userFactors.get(itemIndex, f1);
+                        B.data[f1] += u1 * rating;
+                        // A = U_j^T * U_j
+                        for (int f2 = 0; f2 < factors; f2++) {
+                            double u2 = userFactors.get(itemIndex, f2);
+                            A.data[f1 * factors + f2] += u1 * u2;
+                        }
+                    }
+                }
+                // U_j^T * U_j + I_k * r
+                CommonOps_DDRM.addEquals(A, I);
+                // (U_j^T * U_j + I_k * r) * V_j = U_j^T * R_j
+                if (solverDense.setA(A)) {
+                    solverDense.solve(B, sol);
+                    // copy into itemFactors
+                    System.arraycopy(sol.data, 0, itemFactors.data, j * factors, factors);
+                }
+
+//                int[] filter = createFilterForRows(j, userItemTableTransposed);
+//                if (filter.length == 0) continue;
+//                // R_j | dims: n-?x1
+//                filterRows(getColumn(userItemTable, j, tmp), filter, r);
+//                // U_j | dims: n-?xk
+//                filterRows(userFactors, filter, uv);
+//                CommonOps_DDRM.multTransA(uv, uv, calc); // U_j^T * U_j | dims: kxn-? * n-?xk = kxk
+//                CommonOps_DDRM.add(calc, I, calc2); // U_j^T * U_j + I_k * r | dims kxk + kxk = kxk
+//                CommonOps_DDRM.invert(calc2, calc); // (U_j^T * U_j + I_k * r)^(-1) | dims: kxk^(-1) = kxk
+//                CommonOps_DDRM.multTransB(calc, uv, big); // (U_j^T * U_j + I_k * r)^(-1) * U_j^T | dims: kxk * kxn-? = kxn-?
+//                CommonOps_DSCC.multTransAB(r, big, vector); // R_i^T * ((U_j^T * U_j + I_k * r)^(-1) * U_j^T)^T | dims: 1xn-? * n-?xk = 1xk
+//                setRow(itemFactors, vector, j);
             }
         }
         return new AlsFitResult(userFactors, itemFactors);
