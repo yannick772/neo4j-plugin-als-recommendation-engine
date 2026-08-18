@@ -25,7 +25,7 @@ public class AlsRmse extends AlsProcedure {
     public Stream<DoubleOutput> rmse(@Name("relationship") String relationship, @Name("user") String user, @Name("item") String item, @Name("value") String value) {
         Map<String, Integer> userIdMap = getNodeIdMap(user);
         Map<String, Integer> itemIdMap = getNodeIdMap(item);
-        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, userIdMap, itemIdMap, value);
+        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, item, userIdMap, itemIdMap, value);
 
         DMatrixRMaj userFactors = getCharacteristicFactors(user, userIdMap);
         DMatrixRMaj itemFactors = getCharacteristicFactors(item, itemIdMap);

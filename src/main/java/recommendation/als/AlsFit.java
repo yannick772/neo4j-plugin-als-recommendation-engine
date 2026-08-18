@@ -46,7 +46,7 @@ public class AlsFit extends AlsProcedure {
         Map<String, Integer> userIdMap = getNodeIdMap(user);
         Map<String, Integer> itemIdMap = getNodeIdMap(item);
 
-        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, userIdMap, itemIdMap, value);
+        DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, item, userIdMap, itemIdMap, value);
 
         // calculate characteristic vectors
         AlsService.setLog(log);

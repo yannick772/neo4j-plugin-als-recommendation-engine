@@ -26,18 +26,31 @@ public class AlsProcedure extends BaseProcedure {
         return nodeIdMap;
     }
 
-    protected DMatrixSparseCSC getUserItemMatrix(String relationClass, Map<String, Integer> userIdMap, Map<String, Integer> itemIdMap, String propertyName) {
+    protected DMatrixSparseCSC getUserItemMatrix(String relationClass, String itemClass, Map<String, Integer> userIdMap, Map<String, Integer> itemIdMap, String propertyName) {
         Instant start = Instant.now();
-        DMatrixSparseCSC userItemMatrix = new DMatrixSparseCSC(userIdMap.size(), itemIdMap.size());
-        ResourceIterator<Relationship> relationships = findRelationshipsByName(relationClass);
-        while (relationships.hasNext()) {
-            Relationship relationship = relationships.next();
-            Integer userIndex = userIdMap.get(relationship.getStartNode().getElementId());
-            Integer itemIndex = itemIdMap.get(relationship.getEndNode().getElementId());
-            double rating = Double.parseDouble(String.valueOf(relationship.getProperty(propertyName)));
-            userItemMatrix.set(userIndex, itemIndex, rating);
+        int relationshipCount = Math.toIntExact(findRelationshipsByName(relationClass).stream().count());
+        DMatrixSparseCSC userItemMatrix = new DMatrixSparseCSC(userIdMap.size(), itemIdMap.size(), relationshipCount);
+        ResourceIterator<Node> items = findNodesByLabel(itemClass);
+        int nzPointer = 0;
+        while (items.hasNext()) {
+            Node item = items.next();
+            int itemIndex = itemIdMap.get(item.getElementId());
+            ResourceIterable<Relationship> relationships = item.getRelationships(Direction.INCOMING, RelationshipType.withName(relationClass));
+            for (Relationship relationship : relationships) {
+                Node user = relationship.getStartNode();
+                int userIndex = userIdMap.get(user.getElementId());
+                double rating = ((Number) relationship.getProperty(propertyName)).doubleValue();
+                userItemMatrix.nz_rows[nzPointer] = userIndex;
+                userItemMatrix.nz_values[nzPointer] = rating;
+                nzPointer++;
+            }
+            userItemMatrix.col_idx[itemIndex + 1] = nzPointer;
         }
+        userItemMatrix.nz_length = relationshipCount;
         log.info("Created %sx%s Matrix in %s".formatted(userItemMatrix.getNumRows(), userItemMatrix.getNumCols(), durationToString(start)));
+        start = Instant.now();
+        userItemMatrix.sortIndices(null);
+        log.info("Sorted %sx%s Matrix row indices in %s".formatted(userItemMatrix.getNumRows(), userItemMatrix.getNumCols(), durationToString(start)));
         return userItemMatrix;
     }
 
