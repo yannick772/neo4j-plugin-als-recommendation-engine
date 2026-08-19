@@ -22,7 +22,11 @@ public class AlsRmse extends AlsProcedure {
             relationship: the class name of the relationship between the user and item nodes
             value: the name of the value in the relationship that is supposed to be predicted via als
             """)
-    public Stream<DoubleOutput> rmse(@Name("relationship") String relationship, @Name("user") String user, @Name("item") String item, @Name("value") String value) {
+    public Stream<DoubleOutput> rmse(
+            @Name(value = "relationship", defaultValue = "RATED") String relationship,
+            @Name(value = "user", defaultValue = "User") String user,
+            @Name(value = "item", defaultValue = "Movie") String item,
+            @Name(value = "value", defaultValue = "rating") String value) {
         Map<String, Integer> userIdMap = getNodeIdMap(user);
         Map<String, Integer> itemIdMap = getNodeIdMap(item);
         DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, item, userIdMap, itemIdMap, value);
