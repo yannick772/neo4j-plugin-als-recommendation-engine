@@ -48,23 +48,32 @@ public class AlsFit extends AlsProcedure {
 
         DMatrixSparseCSC userItemMatrix = getUserItemMatrix(relationship, item, userIdMap, itemIdMap, value);
 
+        log.info("Pulled all from database in %s".formatted(durationToString(start)));
+
         // calculate characteristic vectors
         AlsService.setLog(log);
         AlsFitResult fitResult;
+        Instant start2 = Instant.now();
         if (seed == 0) {
             fitResult = AlsService.fit(userItemMatrix, (int) iterations, (float) regulation, (int) factors);
         } else {
             fitResult = AlsService.fit(userItemMatrix, (int) iterations, (float) regulation, (int) factors, seed);
         }
+        log.info("Completed ALS Algorithm in %s".formatted(durationToString(start2)));
         AlsService.removeLog();
 
+
+        start2 = Instant.now();
         // set als characteristic vectors for users
         DMatrixRMaj userFactors = fitResult.getUserFactors();
         userIdMap.forEach((userId, index) -> setNodeProperty(userId, PROPERTY_ALS, getRow(userFactors, index).data));
+        log.info("Set user nodes in %s".formatted(durationToString(start2)));
 
+        start2 = Instant.now();
         // set als characteristic vectors for items
         DMatrixRMaj itemFactors = fitResult.getItemFactors();
         itemIdMap.forEach((itemId, index) -> setNodeProperty(itemId, PROPERTY_ALS, getRow(itemFactors, index).data));
+        log.info("Set item nodes in %s".formatted(durationToString(start2)));
 
         // ending timer
         log.info("AlsFit took " + durationToString(start));
